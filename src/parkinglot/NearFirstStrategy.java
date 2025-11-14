@@ -1,40 +1,52 @@
 package parkinglot;
 
-import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 public class NearFirstStrategy implements ParkingStrategy {
 
     @Override
-    public ParkingSpot find(List<ParkingFloor> floors, Vehicle vehicle) {
-        List<ParkingSpot> spot = new ArrayList<>(1);
-        boolean find = false;
+    public Optional<ParkingSpot> find(List<ParkingFloor> floors, Vehicle vehicle) {
         for (ParkingFloor floor : floors) {
-            switch (vehicle.type) {
-                case SMALL -> {
-                    if (!floor.getSpots().get(SportSize.SMALL).isEmpty()) {
-                        spot.add(floor.getSpots().get(SportSize.SMALL).getFirst());
-                        find = true;
-                    }
-                }
-                case MEDIUM -> {
-                    if (!floor.getSpots().get(SportSize.MEDIUM).isEmpty()) {
-                        spot.add(floor.getSpots().get(SportSize.MEDIUM).getFirst());
-                        find = true;
-                    }
-                }
+            switch (vehicle.getType()) {
 
-                case LARGE -> {
-                    if (!floor.getSpots().get(SportSize.LARGE).isEmpty()) {
-                        spot.add(floor.getSpots().get(SportSize.LARGE).getFirst());
-                        find = true;
+                case SMALL:
+                    Optional<ParkingSpot> small = findAvailableSpotInList(floor, SpotSize.SMALL);
+                    if (small.isPresent()) {
+                        return small;
                     }
-                }
+                case MEDIUM:
+                    Optional<ParkingSpot> medium = findAvailableSpotInList(floor, SpotSize.MEDIUM);
+                    if (medium.isPresent()) {
+                        return medium;
+                    }
+                case LARGE:
+                    Optional<ParkingSpot> large = findAvailableSpotInList(floor, SpotSize.LARGE);
+                    if (large.isPresent()) {
+                        return large;
+                    }
             }
-            if (find) {
-                break;
+
+        }
+        return Optional.empty();
+    }
+
+    private Optional<ParkingSpot> findAvailableSpotInList(ParkingFloor floor, SpotSize spotSize) {
+        List<ParkingSpot> spots = floor.getSpots().get(spotSize);
+        //这里线程不安全，当stream返回spot 时，它可能被其他线程占用了
+//        return Optional.ofNullable(spots)
+//                .flatMap(list -> list.stream().
+//                        filter(spot -> !spot.isOccupied())
+//                        .findFirst());
+        if(spots==null){
+            return Optional.empty();
+        }
+        for(ParkingSpot spot: spots){
+            //CAS保证线程安全
+            if(spot.occupy()){
+                return Optional.of(spot);
             }
         }
-        return spot.getFirst();
+        return Optional.empty();
     }
 }

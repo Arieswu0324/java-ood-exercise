@@ -1,19 +1,12 @@
 package parkinglot;
 
 public class ParkingTicket {
-    private int id;
     private long startTs;
     private long endTs;
     private Vehicle vehicle;
     private double rate;
+    private ParkingSpot spot;
 
-    public void setId(int id) {
-        this.id = id;
-    }
-
-    public int getId() {
-        return id;
-    }
 
     public void setEndTs(long endTs) {
         this.endTs = endTs;
@@ -45,5 +38,13 @@ public class ParkingTicket {
 
     public Vehicle getVehicle() {
         return vehicle;
+    }
+
+    public void setSpot(ParkingSpot spot) {
+        this.spot = spot;
+    }
+
+    public ParkingSpot getSpot() {
+        return spot;
     }
 }

@@ -1,8 +1,9 @@
 package parkinglot;
 
 import java.util.List;
+import java.util.Optional;
 
 public interface ParkingStrategy {
 
-    public ParkingSpot find(List<ParkingFloor> availableSpots, Vehicle vehicle);
+  Optional<ParkingSpot> find(List<ParkingFloor> availableSpots, Vehicle vehicle);
 }

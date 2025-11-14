@@ -1,46 +1,35 @@
 package parkinglot;
 
+import java.util.concurrent.atomic.AtomicBoolean;
+
 public class ParkingSpot {
-    private int id;
-    private int floorId;
-    private boolean isOccupied;
-   private ParkingTicket ticket;
-    private SportSize size;
+    private final int id;
+    private final SpotSize size;
 
 
-    public int getId() {
-        return id;
+    private final AtomicBoolean isOccupied = new AtomicBoolean(false);
+
+
+    public boolean occupy() {
+        return isOccupied.compareAndSet(false, true);
     }
 
-    public boolean isOccupied() {
-        return isOccupied;
+    public void release() {
+        isOccupied.set(false);
     }
 
-    public ParkingTicket getTicket() {
-        return ticket;
-    }
-
-    public SportSize getSize() {
-        return size;
-    }
-
-    public void setId(int id) {
+    ParkingSpot(int id, SpotSize size) {
         this.id = id;
-    }
-
-    public void setFloorId(int floorId) {
-        this.floorId = floorId;
-    }
-
-    public void setOccupied(boolean occupied) {
-        isOccupied = occupied;
-    }
-
-    public void setSize(SportSize size) {
         this.size = size;
     }
 
-    public void setTicket(ParkingTicket ticket) {
-        this.ticket = ticket;
+
+    public SpotSize getSize() {
+        return size;
     }
+
+    public boolean isOccupied(){
+        return isOccupied.get();
+    }
+
 }

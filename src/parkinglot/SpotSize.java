@@ -1,5 +1,5 @@
 package parkinglot;
 
-public enum SportSize {
+public enum SpotSize {
     SMALL, MEDIUM, LARGE
 }

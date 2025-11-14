@@ -3,6 +3,7 @@ package parkinglot;
 import java.text.MessageFormat;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicReference;
 
 
 /**
@@ -10,29 +11,28 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public class ParkingLotSystem {
 
-    private List<ParkingFloor> floors;
+    // Use AtomicReference for thread-safe updates with immutable collections
+    private final AtomicReference<List<ParkingFloor>> floors = new AtomicReference<>(Collections.emptyList());
 
-    //concurrent
     private final Map<String, ParkingTicket> tickets = new ConcurrentHashMap<>();
 
-    private ParkingStrategy strategy;
+    private final AtomicReference<ParkingStrategy> strategy = new AtomicReference<>();
 
-    private Map<SportSize, Double> rateMap;
+    private final AtomicReference<Map<SpotSize, Double>> rateMap = new AtomicReference<>(Collections.emptyMap());
 
     private static volatile ParkingLotSystem instance;
 
-    //concurrent
     //floor, type, list of spots
-    public static final Map<SportSize, Integer> availableCounts = new ConcurrentHashMap<>();
+    private final Map<SpotSize, Integer> availableCounts = new ConcurrentHashMap<>();
 
     ParkingLotSystem() {
     }
 
-    public ParkingLotSystem getInstance() {
-        if (instance != null) {
+    public static ParkingLotSystem getInstance() {
+        if (instance == null) {
             synchronized (ParkingLotSystem.class) {
-                if (instance != null) {
-                    return new ParkingLotSystem();
+                if (instance == null) {
+                    instance = new ParkingLotSystem();
                 }
             }
         }
@@ -40,73 +40,139 @@ public class ParkingLotSystem {
     }
 
     public void setParkingStrategy(ParkingStrategy strategy) {
-        this.strategy = strategy;
+        if (strategy == null) {
+            throw new IllegalArgumentException("Strategy cannot be null");
+        }
+        this.strategy.set(strategy);
     }
 
-    public void setRateStrategy(Map<SportSize, Double> rateMap) {
-        this.rateMap = rateMap;
+    public void setRateStrategy(Map<SpotSize, Double> rateMap) {
+        if (rateMap == null) {
+            throw new IllegalArgumentException("Rate map cannot be null");
+        }
+        // Defensive copy + unmodifiable to prevent external modification
+        this.rateMap.set(Map.copyOf(rateMap));
     }
 
     public void setFloors(List<ParkingFloor> floors) {
-        this.floors = floors;
+        if (floors == null) {
+            throw new IllegalArgumentException("Floors cannot be null");
+        }
+
+        // Make defensive copy to prevent external modification
+        List<ParkingFloor> floorsCopy = List.copyOf(floors);
+        this.floors.set(floorsCopy);
+
+        // Recalculate available counts
         int smallCount = 0;
         int midCount = 0;
         int largeCount = 0;
 
-        for (ParkingFloor floor : floors) {
-            smallCount += floor.getSpots().get(SportSize.SMALL).size();
-            midCount += floor.getSpots().get(SportSize.MEDIUM).size();
-            largeCount += floor.getSpots().get(SportSize.LARGE).size();
+        for (ParkingFloor floor : floorsCopy) {
+            Map<SpotSize, List<ParkingSpot>> spots = floor.getSpots();
+            if (spots != null) {
+                smallCount += spots.getOrDefault(SpotSize.SMALL, Collections.emptyList()).size();
+                midCount += spots.getOrDefault(SpotSize.MEDIUM, Collections.emptyList()).size();
+                largeCount += spots.getOrDefault(SpotSize.LARGE, Collections.emptyList()).size();
+            }
         }
 
-        availableCounts.put(SportSize.SMALL, smallCount);
-        availableCounts.put(SportSize.MEDIUM, midCount);
-        availableCounts.put(SportSize.LARGE, largeCount);
+        availableCounts.put(SpotSize.SMALL, smallCount);
+        availableCounts.put(SpotSize.MEDIUM, midCount);
+        availableCounts.put(SpotSize.LARGE, largeCount);
     }
 
 
-    public ParkingTicket park(Vehicle vehicle) {
-        if (tickets.containsKey(vehicle.plate)) {
+    public Optional<ParkingTicket> park(Vehicle vehicle) {
+
+        ParkingTicket newTicket = new ParkingTicket();
+
+        ParkingTicket existingTicket = tickets.putIfAbsent(vehicle.getPlate(), newTicket);
+
+        if (existingTicket != null) {
             throw new IllegalArgumentException("该车辆已停在车库，不可重复停车");
         }
-        ParkingSpot spot = strategy.find(floors, vehicle);
-        if (spot != null) {
-            spot.setOccupied(true);
-            removeFromAvailableSpot(spot);
-        } else {
-            return null;
+
+        ParkingStrategy currentStrategy = strategy.get();
+        if (currentStrategy == null) {
+            tickets.remove(vehicle.getPlate());
+            throw new IllegalStateException("Parking strategy not configured");
         }
 
-        ParkingTicket ticket = new ParkingTicket();
-        ticket.setRate(rateMap.get(spot.getSize()));
-        ticket.setStartTs(System.currentTimeMillis());
-        ticket.setVehicle(vehicle);
+        List<ParkingFloor> currentFloors = floors.get();
+        Optional<ParkingSpot> spotOptional = currentStrategy.find(currentFloors, vehicle);
+        if (spotOptional.isEmpty()) {
+            tickets.remove(vehicle.getPlate());
+            return Optional.empty();
+        }
 
-        spot.setTicket(ticket);
-        tickets.put(vehicle.plate, ticket);
+        ParkingSpot spot = spotOptional.get();
+
+        Map<SpotSize, Double> currentRateMap = rateMap.get();
+        Double rate = currentRateMap.get(spot.getSize());
+
+        if (rate == null) {
+            spot.release();
+            tickets.remove(vehicle.getPlate());
+            throw new IllegalStateException("No rate configured for spot size: " + spot.getSize());
+        }
+
+        newTicket.setRate(rate);
+        newTicket.setStartTs(System.currentTimeMillis());
+        newTicket.setVehicle(vehicle);
+        newTicket.setSpot(spot);
+        removeFromAvailableSpot(spot);
+        return Optional.of(newTicket);
+    }
+
+    public double unpark(Vehicle vehicle) {
+
+        ParkingTicket ticket = tickets.remove(vehicle.getPlate());
+
+        if (ticket == null) {
+            throw new IllegalArgumentException("该车辆未停在车库");
+        }
+
+        ticket.setEndTs(System.currentTimeMillis());
+
+        ParkingSpot spot = ticket.getSpot();
+        if (spot != null) {
+            spot.release();// spot.release() 需要线程安全
+            addToAvailableSpot(spot);
+        }
+
+        long duration = ticket.getEndTs() - ticket.getStartTs();
+        return (double) duration / 1000 * ticket.getRate();//模拟
+    }
 
 
-        return ticket;
+    public void checkAvailableSpots() {
+        String info = MessageFormat.format("剩余车位数：小型 {0} 个， 中型 {1} 个， 大型 {2} 个",
+                availableCounts.getOrDefault(SpotSize.SMALL, 0),
+                availableCounts.getOrDefault(SpotSize.MEDIUM, 0),
+                availableCounts.getOrDefault(SpotSize.LARGE, 0));
+        System.out.println(info);
     }
 
     private void removeFromAvailableSpot(ParkingSpot spot) {
-        availableCounts.put(spot.getSize(), availableCounts.get(spot.getSize()) - 1);
+        //lambda 表达式中的所有操作受锁保护
+        availableCounts.compute(spot.getSize(), (key, old) -> {
+            if (old == null || old == 0) {
+                return 0;
+            }
+            return old - 1;
+        });
+
+        //BUG 以下操作不是原子的，put和get在ConcurrentHashMap中本身是线程安全的，但这是个组合操作，线程不安全
+        //availableCounts.put(spot.getSize(), availableCounts.get(spot.getSize()) - 1);
     }
 
-
-    public double unpark(Vehicle vehicle) {
-        if (!tickets.containsKey(vehicle.plate)) {
-            throw new IllegalArgumentException("该车辆未停在车库");
-        }
-        ParkingTicket ticket = tickets.get(vehicle.plate);
-        ticket.setEndTs(System.currentTimeMillis());
-        long duration = ticket.getEndTs() - ticket.getStartTs();
-        return (double) duration / 1000 / 60 / 30 * ticket.getRate();
-    }
-
-    public void checkAvailableSpots() {
-        String info = MessageFormat.format("剩余车位数：小型 {} 个， 中型 {} 个， 大型 {} 个",
-                availableCounts.get(SportSize.SMALL), availableCounts.get(SportSize.MEDIUM), availableCounts.get(SportSize.LARGE));
-        System.out.println(info);
+    private void addToAvailableSpot(ParkingSpot spot) {
+        availableCounts.compute(spot.getSize(), (key, old) -> {
+            if (old == null) {
+                return 1;
+            }
+            return old + 1;
+        });
     }
 }
