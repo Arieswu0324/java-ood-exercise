@@ -33,11 +33,7 @@ public class NearFirstStrategy implements ParkingStrategy {
 
     private Optional<ParkingSpot> findAvailableSpotInList(ParkingFloor floor, SpotSize spotSize) {
         List<ParkingSpot> spots = floor.getSpots().get(spotSize);
-        //这里线程不安全，当stream返回spot 时，它可能被其他线程占用了
-//        return Optional.ofNullable(spots)
-//                .flatMap(list -> list.stream().
-//                        filter(spot -> !spot.isOccupied())
-//                        .findFirst());
+
         if(spots==null){
             return Optional.empty();
         }

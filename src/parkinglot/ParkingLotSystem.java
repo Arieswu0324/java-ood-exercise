@@ -50,7 +50,6 @@ public class ParkingLotSystem {
         if (rateMap == null) {
             throw new IllegalArgumentException("Rate map cannot be null");
         }
-        // Defensive copy + unmodifiable to prevent external modification
         this.rateMap.set(Map.copyOf(rateMap));
     }
 
@@ -63,7 +62,7 @@ public class ParkingLotSystem {
         List<ParkingFloor> floorsCopy = List.copyOf(floors);
         this.floors.set(floorsCopy);
 
-        // Recalculate available counts
+
         int smallCount = 0;
         int midCount = 0;
         int largeCount = 0;
@@ -163,8 +162,6 @@ public class ParkingLotSystem {
             return old - 1;
         });
 
-        //BUG 以下操作不是原子的，put和get在ConcurrentHashMap中本身是线程安全的，但这是个组合操作，线程不安全
-        //availableCounts.put(spot.getSize(), availableCounts.get(spot.getSize()) - 1);
     }
 
     private void addToAvailableSpot(ParkingSpot spot) {
