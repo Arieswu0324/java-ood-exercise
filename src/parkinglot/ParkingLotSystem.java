@@ -25,6 +25,9 @@ public class ParkingLotSystem {
     //floor, type, list of spots
     private final Map<SpotSize, Integer> availableCounts = new ConcurrentHashMap<>();
 
+    private final Map<SpotSize, Set<ParkingLotObserver>> observerMap = new ConcurrentHashMap<>();
+
+
     ParkingLotSystem() {
     }
 
@@ -58,7 +61,6 @@ public class ParkingLotSystem {
             throw new IllegalArgumentException("Floors cannot be null");
         }
 
-        // Make defensive copy to prevent external modification
         List<ParkingFloor> floorsCopy = List.copyOf(floors);
         this.floors.set(floorsCopy);
 
@@ -138,6 +140,9 @@ public class ParkingLotSystem {
         if (spot != null) {
             spot.release();// spot.release() 需要线程安全
             addToAvailableSpot(spot);
+            //发送通知
+            SpotAvailableEvent event = new SpotAvailableEvent(spot);
+            notifyObservers(event);
         }
 
         long duration = ticket.getEndTs() - ticket.getStartTs();
@@ -151,6 +156,25 @@ public class ParkingLotSystem {
                 availableCounts.getOrDefault(SpotSize.MEDIUM, 0),
                 availableCounts.getOrDefault(SpotSize.LARGE, 0));
         System.out.println(info);
+    }
+
+    public void subscribe(ParkingLotObserver observer) {
+
+        observer.getInterestedSpot()
+                .forEach(size -> observerMap.computeIfAbsent(size, k -> ConcurrentHashMap.newKeySet()).add(observer));
+    }
+
+    public void unsubscribe(ParkingLotObserver observer) {
+        observer.getInterestedSpot()
+                .forEach(size -> observerMap.computeIfPresent(size, (key, set) -> {
+                    set.remove(observer);
+                    return set.isEmpty() ? null : set;  // 返回 null 时会移除 key
+                }));
+    }
+
+    public void notifyObservers(SpotAvailableEvent event) {
+        SpotSize size = event.getSpot().getSize();
+        observerMap.getOrDefault(size, Set.of()).forEach(observer -> observer.onAvailableSpot(event));
     }
 
     private void removeFromAvailableSpot(ParkingSpot spot) {

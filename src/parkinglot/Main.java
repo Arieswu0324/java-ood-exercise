@@ -28,6 +28,14 @@ public class Main {
 
         parkingLotSystem.setParkingStrategy(new NearFirstStrategy());
 
+        //测试消息通知
+        CarObserver carObserver = new CarObserver("AAB CCD");
+        TruckObserver truckObserver = new TruckObserver("TRU CKA");
+
+        parkingLotSystem.subscribe(carObserver);
+        parkingLotSystem.subscribe(truckObserver);
+
+
         CarFactory factory = CarFactory.getInstance();
         Vehicle myCar = factory.create("ABC CDE");
 
@@ -35,7 +43,7 @@ public class Main {
 
         Optional<ParkingTicket> ticketOptional = parkingLotSystem.park(myCar);
         if (ticketOptional.isEmpty()) {
-            System.out.println("No available spot to park");
+            System.out.println("No available spot to park, subscribed to available spots");
         } else {
             ParkingTicket ticket = ticketOptional.get();
             Instant instance = Instant.ofEpochMilli(ticket.getStartTs());
@@ -55,6 +63,8 @@ public class Main {
         double expense = parkingLotSystem.unpark(myCar);
         System.out.printf("my parking fee: %.2f", expense);
 
+        parkingLotSystem.unsubscribe(carObserver);
+        parkingLotSystem.unsubscribe(truckObserver);
 
     }
 }
