@@ -25,7 +25,9 @@ public class ParkingLotSystem {
     //floor, type, list of spots
     private final Map<SpotSize, Integer> availableCounts = new ConcurrentHashMap<>();
 
-    private final Map<SpotSize, Set<ParkingLotObserver>> observerMap = new ConcurrentHashMap<>();
+    private final Map<SpotSize, Set<ParkingLotPushObserver>> pushObserverMap = new ConcurrentHashMap<>();
+
+    private final Map<SpotSize, Set<ParkingLotPullObserver>> pullObserverMap = new ConcurrentHashMap<>();
 
 
     ParkingLotSystem() {
@@ -142,7 +144,8 @@ public class ParkingLotSystem {
             addToAvailableSpot(spot);
             //发送通知
             SpotAvailableEvent event = new SpotAvailableEvent(spot);
-            notifyObservers(event);
+            notifyObserversByPush(event);
+            notifyObserversByPull(spot.getSize());
         }
 
         long duration = ticket.getEndTs() - ticket.getStartTs();
@@ -156,25 +159,6 @@ public class ParkingLotSystem {
                 availableCounts.getOrDefault(SpotSize.MEDIUM, 0),
                 availableCounts.getOrDefault(SpotSize.LARGE, 0));
         System.out.println(info);
-    }
-
-    public void subscribe(ParkingLotObserver observer) {
-
-        observer.getInterestedSpot()
-                .forEach(size -> observerMap.computeIfAbsent(size, k -> ConcurrentHashMap.newKeySet()).add(observer));
-    }
-
-    public void unsubscribe(ParkingLotObserver observer) {
-        observer.getInterestedSpot()
-                .forEach(size -> observerMap.computeIfPresent(size, (key, set) -> {
-                    set.remove(observer);
-                    return set.isEmpty() ? null : set;  // 返回 null 时会移除 key
-                }));
-    }
-
-    public void notifyObservers(SpotAvailableEvent event) {
-        SpotSize size = event.getSpot().getSize();
-        observerMap.getOrDefault(size, Set.of()).forEach(observer -> observer.onAvailableSpot(event));
     }
 
     private void removeFromAvailableSpot(ParkingSpot spot) {
@@ -196,4 +180,63 @@ public class ParkingLotSystem {
             return old + 1;
         });
     }
+
+    public void subscribe(ParkingLotObserver observer) {
+        if (observer instanceof ParkingLotPushObserver) {
+            addToObserverMap(pushObserverMap, (ParkingLotPushObserver) observer);
+        } else if (observer instanceof ParkingLotPullObserver) {
+            addToObserverMap(pullObserverMap, (ParkingLotPullObserver) observer);
+        } else {
+            throw new IllegalArgumentException("observer not supported");
+        }
+    }
+
+    public void unsubscribe(ParkingLotObserver observer) {
+        if (observer instanceof ParkingLotPushObserver) {
+            removeFromObserverMap(pushObserverMap, (ParkingLotPushObserver) observer);
+        } else if (observer instanceof ParkingLotPullObserver) {
+            removeFromObserverMap(pullObserverMap, (ParkingLotPullObserver) observer);
+
+        } else {
+            throw new IllegalArgumentException("observer not supported");
+        }
+    }
+
+    private <T extends ParkingLotObserver> void addToObserverMap(Map<SpotSize, Set<T>> observerMap, T observer) {
+        observer.getInterestedSpot()
+                .forEach(size -> observerMap.computeIfAbsent(size, k -> ConcurrentHashMap.newKeySet()).add(observer));
+    }
+
+    private <T extends ParkingLotObserver> void removeFromObserverMap(Map<SpotSize, Set<T>> observerMap, T observer) {
+        observer.getInterestedSpot()
+                .forEach(size -> observerMap.computeIfPresent(size, (key, set) -> {
+                    set.remove(observer);
+                    return set.isEmpty() ? null : set;  // 返回 null 时会移除 key
+                }));
+    }
+
+    private void notifyObserversByPush(SpotAvailableEvent event) {
+        SpotSize size = event.getSpot().getSize();
+        pushObserverMap.getOrDefault(size, Set.of()).forEach(observer -> observer.onAvailableSpot(event));
+    }
+
+    private void notifyObserversByPull(SpotSize size) {
+        pullObserverMap.getOrDefault(size, Set.of()).forEach(observer -> observer.onAvailableSpot(this));
+
+    }
+
+    public Optional<ParkingSpot> getAvailableSpot(SpotSize size) {
+        //对每一层轮询，找到第一个符合的空位
+        for (ParkingFloor floor : floors.get()) {
+            List<ParkingSpot> spots = floor.getSpots().getOrDefault(size, Collections.emptyList());
+            for (ParkingSpot spot : spots) {
+                if (!spot.isOccupied()) {//time to check
+                    return Optional.of(spot);//time to use
+                }
+            }
+        }
+        return Optional.empty();
+
+    }
+
 }

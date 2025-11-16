@@ -7,7 +7,7 @@ public class MotorFactory extends VehicleFactory {
     private MotorFactory() {
     }
 
-    public MotorFactory getInstance() {
+    public static MotorFactory getInstance() {
         return INSTANCE;
     }
 

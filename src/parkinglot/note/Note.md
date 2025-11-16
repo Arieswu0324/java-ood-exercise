@@ -88,9 +88,9 @@ PUSH:
 - ❌ 如果事件数据很大，可能造成内存浪费
 - ❌ 观察者可能不需要所有数据，但还是被推送了
 
-**学习这观察者模式时，很容易联想到kafka 消息队列，但是这两个不完全一样，后者是Pub/Sub模式。在比较复杂的Kafka消息队列中，多了一个中间件，把生产者和主题隔离了，达到削峰填谷的作用
-这里，对于生产者来说，是PUSH 模型，生产产者把消息推送到所有subscribed broker 中，此时broker是观察者。(可以这么类比，但不完全准确)。
-而对于消费者来说，消费者是POLL模型，此时主题是observable，consumer是观察者，观察者是定期去主题中请求消息进行处理的**
+**学习这观察者模式时，很容易联想到kafka 消息队列，但是这两个不完全一样，后者是Pub/Sub模式。
+在比较复杂的Kafka消息队列中，多了一个中间件，把生产者和主题隔离了，达到削峰填谷的作用。对于生产者来说，是PUSH 模型，生产产者把消息推送到所有subscribed broker 中，此时broker是观察者。(可以这么类比，但不完全准确)。
+而对于消费者来说，消费者是POLL模型，此时主题是observable，consumer是观察者，观察者是定期去主题中请求消息进行处理的。这与观察者模式的PULL模型不同，观察者模式中，事件发生时，被观测主题还是会notifyALL，而kafka broker则不会notify**
 
 
 ---
@@ -154,19 +154,7 @@ stream API 用着顺手，但很容易隐藏线程安全问题。
 
 ```java
 // 这里线程不安全，当 stream 返回 spot 时，它可能被其他线程占用了
-return Optional.ofNullable(spots)
-    .
-
-flatMap(list ->list.
-
-stream()
-        .
-
-filter(spot ->!spot.
-
-isOccupied())
-        .
-
+return Optional.ofNullable(spots).flatMap(list ->list.stream().filter(spot ->!spot.isOccupied()).
 findFirst());
 ```
 
@@ -174,18 +162,7 @@ findFirst());
 不好找
 
 ```java
-return Optional.ofNullable(spots)
-    .
-
-flatMap(list ->list.
-
-stream()
-        .
-
-filter(ParkingSpot::occupy)
-        .
-
-findFirst());
+return Optional.ofNullable(spots).flatMap(list ->list.stream().filter(ParkingSpot::occupy).findFirst());
 ```
 
 这个场景最好用传统 for，而不是 stream API，即代码中保留的实现方式
@@ -211,13 +188,7 @@ get(spot.getSize())-1);
 这里有个误区，lambda表达式受CAS保护，但如果这里创建的是一个HashSet，那么后面的set.add则是线程不安全的
 
 ```java
-        observer.getInterestedSpot()
-                .
-
-forEach(size ->observers.
-
-computeIfAbsent(size, k ->new HashSet<>()).
-
+observer.getInterestedSpot().forEach(size ->observers.computeIfAbsent(size, k ->new HashSet<>()).
 add(observer));
 ```
 
@@ -243,6 +214,16 @@ String info = MessageFormat.format("剩余车位数：小型 {0} 个， 中型 {
 `AtomicReference<V>` 允许原子性地读取和写入一个引用类型的变量，内部实现是 CAS 的非阻塞。也就是说保证 get/put 是原子性的，线程安全。
 
 同时，`private volatile V value;` 保证其内部对象的可见性。
+
+###  <T extends ParkingLotObserver> 泛型
+当同时实现pull observer和push observer的时候，发现subscribe/unsubscribe方法逻辑重复，用泛型做抽象是个不错的选择。
+```java
+private <T extends ParkingLotObserver> void addToObserverMap(Map<SpotSize, Set<T>> observerMap, T observer) {
+observer.getInterestedSpot()
+.forEach(size -> observerMap.computeIfAbsent(size, k -> ConcurrentHashMap.newKeySet()).add(observer));
+}
+```
+
         
         
     

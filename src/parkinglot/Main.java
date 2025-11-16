@@ -15,33 +15,35 @@ public class Main {
     public static void main(String[] args) throws InterruptedException {
         ParkingLotSystem parkingLotSystem = ParkingLotSystem.getInstance();
         Map<SpotSize, List<ParkingSpot>> map = new HashMap<>();
-        ParkingSpot spot = new ParkingSpot(1, SpotSize.SMALL);
-        map.put(SpotSize.SMALL, List.of(spot));
+        ParkingSpot spot = new ParkingSpot(1, SpotSize.LARGE);
+        map.put(SpotSize.LARGE, List.of(spot));
 
         ParkingFloor floor1 = new ParkingFloor(1);
         floor1.setSpots(map);
         parkingLotSystem.setFloors(List.of(floor1));
 
         Map<SpotSize, Double> rateStrategy = new HashMap<>();
-        rateStrategy.put(SpotSize.SMALL, 0.5);
+        rateStrategy.put(SpotSize.LARGE, 0.5);
         parkingLotSystem.setRateStrategy(rateStrategy);
 
         parkingLotSystem.setParkingStrategy(new NearFirstStrategy());
 
         //测试消息通知
-        CarObserver carObserver = new CarObserver("AAB CCD");
-        TruckObserver truckObserver = new TruckObserver("TRU CKA");
+        CarPushObserver carObserver = new CarPushObserver("AAB CCD");
+        TruckPushObserver truckObserver = new TruckPushObserver("TRU CKA");
+        MotorPullObserver motorObserver = new MotorPullObserver("MOT ORC");
 
         parkingLotSystem.subscribe(carObserver);
         parkingLotSystem.subscribe(truckObserver);
+        parkingLotSystem.subscribe(motorObserver);
 
 
-        CarFactory factory = CarFactory.getInstance();
-        Vehicle myCar = factory.create("ABC CDE");
+        TruckFactory factory = TruckFactory.getInstance();
+        Vehicle myTruck = factory.create("ABC CDE");
 
         parkingLotSystem.checkAvailableSpots();
 
-        Optional<ParkingTicket> ticketOptional = parkingLotSystem.park(myCar);
+        Optional<ParkingTicket> ticketOptional = parkingLotSystem.park(myTruck);
         if (ticketOptional.isEmpty()) {
             System.out.println("No available spot to park, subscribed to available spots");
         } else {
@@ -60,11 +62,12 @@ public class Main {
         //注意，这个时间实际上大于1000，还有系统时间消耗
         Thread.sleep(1000);
 
-        double expense = parkingLotSystem.unpark(myCar);
+        double expense = parkingLotSystem.unpark(myTruck);
         System.out.printf("my parking fee: %.2f", expense);
 
         parkingLotSystem.unsubscribe(carObserver);
         parkingLotSystem.unsubscribe(truckObserver);
+        parkingLotSystem.unsubscribe(motorObserver);
 
     }
 }

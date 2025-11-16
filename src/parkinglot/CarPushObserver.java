@@ -2,12 +2,16 @@ package parkinglot;
 
 import java.util.Set;
 
-public class CarObserver implements ParkingLotObserver{
+public class CarPushObserver implements ParkingLotPushObserver {
     String plate;
-    private final Set<SpotSize> interestedSpot = Set.of(SpotSize.SMALL, SpotSize.MEDIUM, SpotSize.LARGE);
+    private static final Set<SpotSize> INTERESTED_SPOTS = Set.of(SpotSize.SMALL, SpotSize.MEDIUM, SpotSize.LARGE);
 
-    CarObserver(String plate){
+    CarPushObserver(String plate) {
         this.plate = plate;
+    }
+
+    public String getPlate() {
+        return plate;
     }
 
     @Override
@@ -17,11 +21,7 @@ public class CarObserver implements ParkingLotObserver{
 
     @Override
     public Set<SpotSize> getInterestedSpot() {
-        return interestedSpot;
-    }
-
-    public String getPlate(){
-        return plate;
+        return INTERESTED_SPOTS;
     }
 
 
