@@ -70,11 +70,11 @@
 4. 明确事件触发条件： 当unpark 被调用时，产生一个available spot事件-事件触发，调用notifyAll()方法
 
 在这种实现中，主要的Entity是
-Topic/Observable (observers, subscribe, unsubscribe, notifyAll) 在本例中主题和生产者是同一个对象
-Observer(onEvent - 根据发送的事件有具体的行为，去Observable中get)
+Topic/Observable (observers, subscribe, unsubscribe, notifyAll) 在本例中主题和生产者是同一个对象，
+Observer(onEvent - 根据发送的事件有具体的行为)
 
 而对于PULL模型来说，事件是没有传给被观察者的。而且在具体的onEvent方法中，Observer要去Observable中调用参数获得想要的信息。
-PULL模型的优势是Observer可以主动的获取自己想要的信息，而不需要Observable的全部信息。
+PULL模型的优势是Observer可以主动的获取自己想要的信息。
 
 PULL vs PUSH
 PULL
