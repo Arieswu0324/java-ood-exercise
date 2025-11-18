@@ -1,27 +1,35 @@
 package stackoverflow;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 public abstract class Post implements Commentable, Votable {
 
-    private final long createTs;
+    private final String id;
+    private final LocalDateTime createTs;
     private final String content;
     private final User creator;
     private final List<Comment> comments;
     private final Map<User, Vote> votes;
 
     public Post(String content, User creator) {
+        this.id = UUID.randomUUID().toString();
         this.content = content;
         this.creator = creator;
-        this.createTs = System.currentTimeMillis();
+        this.createTs = LocalDateTime.now();
         this.comments = new CopyOnWriteArrayList<>();
         this.votes = new ConcurrentHashMap<>();
     }
 
-    public long getCreateTs() {
+    public String getId() {
+        return id;
+    }
+
+    public LocalDateTime getCreateTs() {
         return createTs;
     }
 

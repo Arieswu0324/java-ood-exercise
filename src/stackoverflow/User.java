@@ -1,9 +1,11 @@
 package stackoverflow;
 
 import java.util.Objects;
+import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class User {
+    private final String id;
     private final String name;
     private final String email;
     private AtomicInteger score;
@@ -12,10 +14,15 @@ public class User {
         this.name = name;
         this.email = email;
         score = new AtomicInteger(0);
+        id = UUID.randomUUID().toString();
     }
 
     public void updateScore(int increment) {
         score.addAndGet(increment);
+    }
+
+    public String getId() {
+        return id;
     }
 
     public Integer getScore() {
