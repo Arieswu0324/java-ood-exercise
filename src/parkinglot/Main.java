@@ -1,5 +1,16 @@
 package parkinglot;
 
+import parkinglot.entity.ParkingFloor;
+import parkinglot.entity.ParkingSpot;
+import parkinglot.entity.ParkingTicket;
+import parkinglot.entity.Vehicle;
+import parkinglot.enums.SpotSize;
+import parkinglot.factory.TruckFactory;
+import parkinglot.observers.CarPushObserver;
+import parkinglot.observers.MotorPullObserver;
+import parkinglot.observers.TruckPushObserver;
+import parkinglot.strategy.NearFirstStrategy;
+
 import java.text.MessageFormat;
 import java.time.Instant;
 import java.time.ZoneId;
@@ -39,7 +50,7 @@ public class Main {
 
 
         TruckFactory factory = TruckFactory.getInstance();
-        Vehicle myTruck = factory.create("ABC CDE");
+        Vehicle myTruck = factory.createVehicle("ABC CDE");
 
         parkingLotSystem.checkAvailableSpots();
 

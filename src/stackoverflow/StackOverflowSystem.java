@@ -1,5 +1,13 @@
 package stackoverflow;
 
+import stackoverflow.common.Commentable;
+import stackoverflow.common.Votable;
+import stackoverflow.entity.*;
+import stackoverflow.enums.ReputationCredit;
+import stackoverflow.enums.VoteType;
+import stackoverflow.indexes.IndexSearch;
+import stackoverflow.strategy.SearchStrategy;
+
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -17,6 +25,8 @@ public class StackOverflowSystem {
     //tag to List of question ids
     private final Map<Tag, List<String>> tagIndex = new ConcurrentHashMap<>();
 
+    private final List<IndexSearch<?>> indexSearches = new CopyOnWriteArrayList<>();
+
     private StackOverflowSystem() {
     }
 
@@ -31,6 +41,11 @@ public class StackOverflowSystem {
         return instance;
     }
 
+    //只能在创建后被立即调用，否则在中途调用则需要对索引进行backfill
+    public void addIndexSearches(List<IndexSearch<?>> indexSearches) {
+        this.indexSearches.addAll(indexSearches);
+    }
+
     public User createUser(String name, String email) {
         User user = new User(name, email);
         users.put(user.getId(), user);
@@ -41,8 +56,7 @@ public class StackOverflowSystem {
         Question question = new Question(title, content, user, tags);
         questions.put(question.getId(), question);
         assignScore(user, ReputationCredit.CREATE);
-        addToUserIndex(question, user);
-        addToTagIndex(question, tags);
+        addToIndexes(question);
         return question;
     }
 
@@ -89,6 +103,10 @@ public class StackOverflowSystem {
         user.updateScore(credit.getCredit());
     }
 
+    private void addToIndexes(Question question) {
+        indexSearches.forEach(indexSearch -> indexSearch.addToIndex(question));
+    }
+
     private void addToTagIndex(Question question, Set<Tag> tags) {
         tags.forEach(tag -> {
             tagIndex.computeIfAbsent(tag, k -> new CopyOnWriteArrayList<>()).add(question.getId());
@@ -106,5 +124,6 @@ public class StackOverflowSystem {
         });
         return result;
     }
+
 
 }

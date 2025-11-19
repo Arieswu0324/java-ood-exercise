@@ -1,5 +1,15 @@
 package stackoverflow;
 
+import stackoverflow.entity.*;
+import stackoverflow.enums.VoteType;
+import stackoverflow.indexes.IndexSearch;
+import stackoverflow.indexes.TagIndexSearch;
+import stackoverflow.indexes.UserIndexSearch;
+import stackoverflow.strategy.KeywordSearchStrategy;
+import stackoverflow.strategy.SearchStrategy;
+import stackoverflow.strategy.TagSearchStrategy;
+import stackoverflow.strategy.UserSearchStrategy;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
@@ -8,6 +18,16 @@ public class Main {
 
     public static void main(String[] args) {
         StackOverflowSystem instance = StackOverflowSystem.getInstance();
+
+        UserIndexSearch userIndexSearch = new UserIndexSearch();
+        TagIndexSearch tagIndexSearch = new TagIndexSearch();
+
+        List<IndexSearch<?>> indexes = new ArrayList<>();
+        indexes.add(userIndexSearch);
+        indexes.add(tagIndexSearch);
+        instance.addIndexSearches(indexes);
+
+
 
         User user = instance.createUser("user", "abc@email.com");
 
@@ -41,6 +61,11 @@ public class Main {
             System.out.println(q.getTitle());
         });
 
+
+        List<Question> byIndex = userIndexSearch.getByIndex(user);
+        byIndex.forEach(q->{
+            System.out.println(q.getTitle());
+        });
 
         System.out.println("---打印积分---");
         System.out.println(user.getName() + "积分为" + user.getScore());
