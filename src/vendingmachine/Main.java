@@ -4,6 +4,7 @@ import vendingmachine.entity.Product;
 import vendingmachine.entity.ProductFactory;
 import vendingmachine.entity.ProductStock;
 import vendingmachine.enums.Money;
+import vendingmachine.exception.VendingMachineException;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -27,7 +28,7 @@ public class Main {
         VendingMachine machine = new VendingMachine(list, money);
 
 
-        Map<Money, Integer> fund = machine.collectMoney();
+        Map<Money, Integer> fund = machine.getAvailableMoney();
         System.out.println("-----printing funds------");
         fund.forEach((key, value) -> {
             System.out.println("钞票：" + key.name() + " : " + value + "个");
@@ -43,16 +44,20 @@ public class Main {
         for (int i = 0; i < 5; i++) {
             Map<Money, Integer> input = new HashMap<>();
             input.put(Money.NOTE_10_POUND, 1);
-            Optional<Map<Money, Integer>> change = machine.dispense("water", input);
-            if (change.isPresent()) {
-                for (Map.Entry<Money, Integer> entry : change.get().entrySet()) {
-                    System.out.println("找零： 面值[" + entry.getKey() + "]" + entry.getValue() + "个");
+            try {
+                Optional<Map<Money, Integer>> change = machine.dispense("water", input);
+                if (change.isPresent()) {
+                    for (Map.Entry<Money, Integer> entry : change.get().entrySet()) {
+                        System.out.println("找零： 面值[" + entry.getKey() + "]" + entry.getValue() + "个");
+                    }
                 }
+                System.out.println("-------出货--------");
+            } catch (VendingMachineException e) {
+                System.out.println("交易失败: " + e.getMessage());
             }
-            System.out.println("-------出货--------");
         }
 
-        fund = machine.collectMoney();
+        fund = machine.getAvailableMoney();
         System.out.println("-----printing funds------");
         fund.forEach((key, value) -> {
             System.out.println("钞票：" + key.name() + " : " + value + "个");

@@ -8,14 +8,14 @@ public enum Money {
     COIN_20_PENCE(20),
     COIN_50_PENCE(50),
     COIN_1_POUND(100),
-    NOTE_1_POUND(100),
     NOTE_5_POUND(500),
     NOTE_10_POUND(1000),
     NOTE_20_POUND(2000),
     NOTE_50_POUND(5000)
     ;
 
-    private int denomination;
+    //如果不加final可能是可变的
+    private final int denomination;
 
     Money(int demonination) {
         this.denomination = demonination;
