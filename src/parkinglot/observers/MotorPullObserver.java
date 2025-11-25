@@ -12,7 +12,7 @@ public class MotorPullObserver implements ParkingLotPullObserver {
 
     private static final Set<SpotSize> INTERESTED_SPOTS = Set.of(SpotSize.MEDIUM, SpotSize.LARGE);
 
-    MotorPullObserver(String plate) {
+    public MotorPullObserver(String plate) {
         this.plate = plate;
     }
 

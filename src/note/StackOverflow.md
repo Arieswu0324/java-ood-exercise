@@ -1,4 +1,3 @@
-## 实现注意到的问题
 
 ### 1. hashCode, equals
 重写 (override) 类的 `hashCode()` 和 `equals()` 方法是处理对象相等性（Equality）的基石。

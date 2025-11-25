@@ -9,7 +9,7 @@ public class CarPushObserver implements ParkingLotPushObserver {
     String plate;
     private static final Set<SpotSize> INTERESTED_SPOTS = Set.of(SpotSize.SMALL, SpotSize.MEDIUM, SpotSize.LARGE);
 
-    CarPushObserver(String plate) {
+    public CarPushObserver(String plate) {
         this.plate = plate;
     }
 
