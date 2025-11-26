@@ -94,8 +94,17 @@ ProductStock是一个DTO，ProductStock 是一个典型的 “不可变数据载
 Record 的设计初衷：是作为不可变数据的透明载体（Transparent Carrier）。它的隐含逻辑是：“数据已经在外面准备好了，我只是负责把它们打包传运。”
 因此，Record 的标准构造函数（Canonical Constructor）要求传入所有字段，不适合Entity 这些带有业务逻辑的类。
 
+record是JDK 的一个新特性，它减少了样板代码，在早期的JDK版本中，可以用private static class 且成员都是final去定义一个不可变类
+对于private record，static可以省略
 
 ### 10. State Pattern
 
 
-### 11. 快照回滚
+### 11. 快照回滚- Memento Pattern
+内存中对当前对象状态的存储，可以用于撤销。
+组成：
+- Originator: 会改变状态的类
+- Memento: 保存快照的实体类，一般被设计为不可变类
+- Caretaker：保存快照的类，如果当前保存的不只是一个Memento对象，而是History，那么可以设计这样一个类去封装不同的快照版本
+在VendingMachine的设计中，dispense方法的事务性操作是：扣除库存，收钱，找零。涉及两个状态的改变：商品，钱数。如果在这个过程中被中断，需要回滚状态。
+这个场景中，Originator是VendingMachine类，Memento的快照需要存储的是所涉及到的状态改变的所有属性。在这个例子中没有Caretaker，因为快照不需要存储。

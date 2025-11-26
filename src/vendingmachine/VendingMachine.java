@@ -72,14 +72,7 @@ public class VendingMachine {
     public Map<Money, Integer> getAvailableMoney() {
         lock.lock();
         try {
-            TreeMap<Money, Integer> fundCopy;
-            if (funds.comparator() != null) {
-                fundCopy = new TreeMap<>(funds);
-            } else {
-                fundCopy = new TreeMap<>();
-                fundCopy.putAll(funds);
-            }
-            return fundCopy;
+            return createFundSnapshot();
         } finally {
             lock.unlock();
         }
@@ -89,13 +82,7 @@ public class VendingMachine {
 
         lock.lock();
         try {
-            TreeMap<Money, Integer> fundCopy;
-            if (funds.comparator() != null) {
-                fundCopy = new TreeMap<>(funds);
-            } else {
-                fundCopy = new TreeMap<>();
-                fundCopy.putAll(funds);
-            }
+            Map<Money, Integer> fundCopy = createFundSnapshot();
             funds.clear();
             return fundCopy;
         } finally {
@@ -112,7 +99,6 @@ public class VendingMachine {
             for (Product product : products) {
                 String productName = product.getName();
 
-                // Check if product type is supported
                 if (!quantities.containsKey(productName)) {
                     returnedProducts.add(product); // Unknown product type
                     continue;
@@ -123,11 +109,11 @@ public class VendingMachine {
                 List<Product> currentStock = stocking.get(productName);
                 int currentSize = (currentStock != null) ? currentStock.size() : 0;
 
-                // Check if we have room for one more item
+                // Add if capacity allows
                 if (currentSize < capacity) {
                     stocking.computeIfAbsent(productName, k -> new LinkedList<>()).add(product);
                 } else {
-                    returnedProducts.add(product); // Machine is full for this product
+                    returnedProducts.add(product);
                 }
             }
 
@@ -137,19 +123,6 @@ public class VendingMachine {
         }
     }
 
-
-    /**
-     * Dispenses a product and returns change.
-     *
-     * @param product Product name to dispense
-     * @param intake  Money inserted by customer
-     * @return Change to return (empty if exact payment)
-     * @throws InvalidPaymentException     if payment is null, empty, or invalid
-     * @throws InvalidProductException     if product name is not recognized
-     * @throws OutOfStockException         if product is not available
-     * @throws InsufficientFundsException  if payment is less than product price
-     * @throws InsufficientChangeException if machine cannot make change with available denominations
-     */
     public Optional<Map<Money, Integer>> dispense(String product, Map<Money, Integer> intake)
             throws VendingMachineException {
 
@@ -163,42 +136,67 @@ public class VendingMachine {
             throw new InvalidPaymentException("Product name cannot be null or empty");
         }
 
-        // Lock the entire transaction
+
         lock.lock();
         try {
-            // Check product exists in configuration
             if (!products.containsKey(product)) {
                 throw new InvalidProductException(product);
             }
 
-            // Check product is in stock
             if (!stocking.containsKey(product) || stocking.get(product).isEmpty()) {
                 throw new OutOfStockException(product);
             }
 
-            // Calculate payment total
+            // Calculate change
             int inputMoney = calculateTotal(intake);
             int productPrice = products.get(product);
             int changeAmount = inputMoney - productPrice;
 
-            // Check sufficient funds provided
+            // Insufficient intake
             if (changeAmount < 0) {
                 throw new InsufficientFundsException(productPrice, inputMoney);
             }
 
-
             // Create snapshot of available funds
-            TreeMap<Money, Integer> snapshot;
-            if (funds.comparator() != null) {
-                snapshot = new TreeMap<>(funds.comparator());
-            } else {
-                snapshot = new TreeMap<>();
-            }
-            snapshot.putAll(funds);
+            TreeMap<Money, Integer> fundSnapshot = createFundSnapshot();
+            // 这里又创建了一个副本，避免策略会修改快照
+            TreeMap<Money, Integer> snapshotCopy = new TreeMap<>(fundSnapshot.comparator());
+            snapshotCopy.putAll(funds);
+            Map<Money, Integer> changePlan = strategy.findChange(changeAmount, snapshotCopy);
 
-            Map<Money, Integer> changePlan = strategy.findChange(changeAmount, snapshot);
+            //Action
+            commitTransaction(product, fundSnapshot, intake, changePlan);
 
-            // All validation passed - commit transaction atomically
+            return Optional.of(changePlan);
+
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    private TreeMap<Money, Integer> createFundSnapshot() {
+        TreeMap<Money, Integer> fundSnapshot;
+        if (funds.comparator() != null) {
+            fundSnapshot = new TreeMap<>(funds.comparator());
+        } else {
+            fundSnapshot = new TreeMap<>();
+        }
+        fundSnapshot.putAll(funds);
+
+        return fundSnapshot;
+    }
+
+
+    private void commitTransaction(String product, TreeMap<Money, Integer> fundSnapshot, Map<Money, Integer> intake, Map<Money, Integer> changePlan) throws VendingMachineException {
+
+        TransactionSnapshot snapshot = new TransactionSnapshot(product,
+                stocking.get(product).getLast(),
+                fundSnapshot,
+                intake,
+                changePlan);
+
+        try {
+            // Commit transaction atomically
             // 1. Remove product from stock
             stocking.get(product).removeLast();
             if (stocking.get(product).isEmpty()) {
@@ -211,11 +209,17 @@ public class VendingMachine {
             // 3. Remove change from funds
             returnMoney(changePlan);
 
-            return Optional.of(changePlan);
-
-        } finally {
-            lock.unlock();
+        } catch (Exception e) {
+            rollback(snapshot);
+            throw new VendingMachineException("Transaction failed and rolled back", e);
         }
+    }
+
+    private void rollback(TransactionSnapshot snapshot) {
+        String productName = snapshot.product;
+        stocking.computeIfAbsent(productName, k -> new LinkedList<>()).add(snapshot.outProduct());
+        funds.clear();
+        funds.putAll(snapshot.fundsBefore());
     }
 
 
@@ -252,5 +256,13 @@ public class VendingMachine {
             });
         }
 
+    }
+
+
+    //Memento Pattern
+    private record TransactionSnapshot(String product, Product outProduct,
+                                       TreeMap<Money, Integer> fundsBefore,
+                                       Map<Money, Integer> intake,
+                                       Map<Money, Integer> changePlan) {
     }
 }

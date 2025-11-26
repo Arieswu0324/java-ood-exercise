@@ -97,5 +97,12 @@ public class Main {
         });
 
 
+        System.out.println("-----collecting Money------");
+        Map<Money, Integer> collectedMoney = machine.collectMoney();
+
+        collectedMoney.forEach((key, value) -> {
+            System.out.println("取出资金：" + key.name() + " : " + value + "个");
+        });
+
     }
 }
