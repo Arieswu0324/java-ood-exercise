@@ -5,12 +5,13 @@ import vendingmachine.entity.ProductFactory;
 import vendingmachine.entity.ProductStock;
 import vendingmachine.enums.Money;
 import vendingmachine.exception.VendingMachineException;
+import vendingmachine.service.VendingMachine;
 
 import java.util.*;
 import java.util.stream.Collectors;
 
 public class Main {
-    public static void main(String[] args) {
+    public static void main(String[] args) throws VendingMachineException {
 
         List<ProductStock> list = new ArrayList<>();
         ProductStock p1 = new ProductStock("cookie", 1000, 10);
@@ -27,12 +28,8 @@ public class Main {
                 Money.COIN_20_PENCE, 5, Money.NOTE_50_POUND, 1);
         VendingMachine machine = new VendingMachine(list, money);
 
+        machine.startOperation();
 
-        Map<Money, Integer> fund = machine.getAvailableMoney();
-        System.out.println("-----printing funds------");
-        fund.forEach((key, value) -> {
-            System.out.println("钞票：" + key.name() + " : " + value + "个");
-        });
         Map<String, List<Product>> stocking = machine.getAvailableProducts();
         System.out.println("-----printing goods------");
         stocking.forEach((key, value) -> {
@@ -57,17 +54,15 @@ public class Main {
             }
         }
 
-        fund = machine.getAvailableMoney();
-        System.out.println("-----printing funds------");
-        fund.forEach((key, value) -> {
-            System.out.println("钞票：" + key.name() + " : " + value + "个");
-        });
+
         stocking = machine.getAvailableProducts();
         System.out.println("-----printing goods------");
         stocking.forEach((key, value) -> {
             System.out.println("产品：" + key + " : " + value.size() + "个");
         });
 
+
+        machine.enterMaintenance();
 
         System.out.println("-----refilling goods------");
         ProductFactory factory = ProductFactory.getInstance();
@@ -102,6 +97,13 @@ public class Main {
 
         collectedMoney.forEach((key, value) -> {
             System.out.println("取出资金：" + key.name() + " : " + value + "个");
+        });
+
+        machine.shutdown();
+        stocking = machine.getAvailableProducts();
+        System.out.println("-----printing goods------");
+        stocking.forEach((key, value) -> {
+            System.out.println("产品：" + key + " : " + value.size() + "个");
         });
 
     }

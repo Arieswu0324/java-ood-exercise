@@ -9,9 +9,10 @@ CopyOnWriteArrayList 的滥用： stocking 使用了 CopyOnWriteArrayList。这�
 如果该商品库存很大，每次购买都会触发一次数组复制，造成大量的内存开销和 GC 压力。
 
 ### 3. Transaction的设计
-这个实现中，dispense接口涉及查货，找零，这两个应该放到一起是一个事物。
+这个实现中，dispense接口涉及查货，找零，这两个应该放到一起是一个事务。
 最开始的实现是收钱-查货-如果货不够-退钱-如果够-取出后-进行找零-找零的过程中会对fund同时进行修改-如果最后发现找不开-退钱-fund状态回退
 这种设计就比较复杂，设计上可以先基于当前快照进行计算-最后统一提交修改任务，这样可以防止复杂的分步回退。
+检查 - 执行 (Check-Then-Act) + 锁
 
 ### 4. 安全性
 getAvailableProducts 泄露内部状态： 直接返回了 stocking 对象。外部调用者可以拿到这个 Map 并随意 clear() 或修改里面的 List，破坏封装性。
@@ -98,6 +99,8 @@ record是JDK 的一个新特性，它减少了样板代码，在早期的JDK版�
 对于private record，static可以省略
 
 ### 10. State Pattern
+状态机实体类对于不同的状态有不同的行为时，可以设计为这个实现模式。此时需要有状态接口，不同的具体状态接口实现不同状态下的行为。
+这些接口是被主类委托的，来改变主类状态，所以参数有this。
 
 
 ### 11. 快照回滚- Memento Pattern
@@ -108,3 +111,19 @@ record是JDK 的一个新特性，它减少了样板代码，在早期的JDK版�
 - Caretaker：保存快照的类，如果当前保存的不只是一个Memento对象，而是History，那么可以设计这样一个类去封装不同的快照版本
 在VendingMachine的设计中，dispense方法的事务性操作是：扣除库存，收钱，找零。涉及两个状态的改变：商品，钱数。如果在这个过程中被中断，需要回滚状态。
 这个场景中，Originator是VendingMachine类，Memento的快照需要存储的是所涉及到的状态改变的所有属性。在这个例子中没有Caretaker，因为快照不需要存储。
+
+### 12. 接口默认方法
+接口中可以有带实现的default方法，实体类可以override，设计意图是减少代码重复。它可以被override，也可以不被override
+
+
+### 13. Code Smell—构造函数
+构造方法中一般不调用加锁的方法，感觉很奇怪，可以直接写代码逻辑，而不追求完全的复用。
+
+### 14. Code Smell-访问限定
+protected的定义是允许子类访问，它的访问粒度是大于package-private的。 默认不加任何访问限定符，是package-private，即同包访问。
+限定符,关键字,同一类中,同一包中,不同包的子类中,不同包的非子类中 (World),封装级别
+
+private,private,✅,❌,❌,❌,最严格 (仅限类内部)
+package-private,无关键字 (默认),✅,✅,❌,❌,包级私有 (仅限同一包)
+protected,protected,✅,✅,✅,❌,受保护 (同一包或子类)
+public,public,✅,✅,✅,✅,最宽松 (全局可访问)
