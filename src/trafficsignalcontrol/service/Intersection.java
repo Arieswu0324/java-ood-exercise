@@ -23,7 +23,7 @@ public class Intersection implements Runnable {
     private volatile boolean shutdown = false;
 
 
-    public Intersection(int id, long greenDuration, long yellowDuration) {
+    private Intersection(int id, long greenDuration, long yellowDuration, IntersectionState state) {
         this.id = id;
         this.lights = new HashMap<>();
         for (Direction d : Direction.values()) {
@@ -33,8 +33,7 @@ public class Intersection implements Runnable {
 
         this.greenDuration = greenDuration;
         this.yellowDuration = yellowDuration;
-
-        intersectionState = new NorthSouthIntersectionState();
+        this.intersectionState = state;
     }
 
 
@@ -129,5 +128,43 @@ public class Intersection implements Runnable {
 
     public void setYellowDuration(long yellowDuration) {
         this.yellowDuration = yellowDuration;
+    }
+
+    //场用于创建不可变对象，
+    public static class Builder {
+        //默认参数防止用户没有调用withDurations方法
+        private long greenDuration = 500;
+        private long yellowDuration = 100;
+        private IntersectionState state = new NorthSouthIntersectionState();
+        private final int id;
+
+        public Builder(int id) {
+            this.id = id;
+        }
+
+        public Builder withYellowDuration(long yellowDuration) {
+            if (yellowDuration <= 0) {
+                throw new IllegalArgumentException("yellow duration should be greater than 0!");
+            }
+            this.yellowDuration = yellowDuration;
+            return this;
+        }
+
+        public Builder withGreenDuration(long greenDuration) {
+            if (greenDuration <= 0) {
+                throw new IllegalArgumentException("green duration should be greater than 0!");
+            }
+            this.greenDuration = greenDuration;
+            return this;
+        }
+
+        public Builder initializeState(IntersectionState state) {
+            this.state = state;
+            return this;
+        }
+
+        public Intersection build() {
+            return new Intersection(id, greenDuration, yellowDuration, state);
+        }
     }
 }
