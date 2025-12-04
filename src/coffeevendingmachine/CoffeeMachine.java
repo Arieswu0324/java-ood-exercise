@@ -88,10 +88,6 @@ public class CoffeeMachine {
         return limit;
     }
 
-    public Map<Ingredient, Integer> getInventory() {
-        return inventory;
-    }
-
     public void addNotificationObserver(RefillObserver observer) {
         observers.add(observer);
     }
@@ -124,6 +120,8 @@ public class CoffeeMachine {
 
             return result;
         } catch (Exception e) {
+            //TODO 这里的异常捕获太宽泛了，没有区分系统异常和业务异常
+            //可以在CoffeeTransactionResult中增加异常字段
             System.out.println("Exception happened when dispensing coffee: " + e.getMessage());
             return new CoffeeTransactionResult(null, intake);
         } finally {
@@ -136,6 +134,7 @@ public class CoffeeMachine {
     }
 
     private List<Ingredient> checkInventory(Map<Ingredient, Integer> inventory) {
+        //TODO 这里的5应该是可配置的常量
         return inventory.entrySet().stream().filter(entry ->
                 entry.getValue() <= 5
         ).map(Map.Entry::getKey).toList();
@@ -159,9 +158,13 @@ public class CoffeeMachine {
     }
 
     public Map<Coin, Integer> collectMoney() throws UnsupportedStateException {
-        CoffeeMachineStateContext context = new CoffeeMachineStateContext(menu, inventory, limit, changeStrategy, money, factory);
-
-        return coffeeMachineState.collectMoney(context);
+        lock.lock();
+        try {
+            CoffeeMachineStateContext context = new CoffeeMachineStateContext(menu, inventory, limit, changeStrategy, money, factory);
+            return coffeeMachineState.collectMoney(context);
+        } finally {
+            lock.unlock();
+        }
     }
 
     public Map<Coin, Integer> getMoney() {

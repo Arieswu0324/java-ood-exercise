@@ -9,7 +9,7 @@ import java.util.Map;
 
 public class CoffeeFactory {
 
-    public static CoffeeFactory INSTANCE = new CoffeeFactory();
+    private static final CoffeeFactory INSTANCE = new CoffeeFactory();
 
     private CoffeeFactory() {
     }
@@ -24,15 +24,8 @@ public class CoffeeFactory {
                     CoffeeType.CAPPUCCINO, Map.of(Ingredient.BEAN, 30, Ingredient.CREAM, 30),
                     CoffeeType.LATTE, Map.of(Ingredient.BEAN, 25, Ingredient.CREAM, 10, Ingredient.MILK, 10));
 
-    public Coffee make(CoffeeType type) throws UnsupportedCoffeeTypeException, InterruptedException {
-        Coffee coffee;
-
-        switch (type) {
-            case ESPRESSO -> coffee = new Coffee(CoffeeType.ESPRESSO, recipes.get(CoffeeType.ESPRESSO));
-            case CAPPUCCINO -> coffee = new Coffee(CoffeeType.CAPPUCCINO, recipes.get(CoffeeType.CAPPUCCINO));
-            case LATTE -> coffee = new Coffee(CoffeeType.LATTE, recipes.get(CoffeeType.LATTE));
-            default -> throw new UnsupportedCoffeeTypeException(type);
-        }
+    public Coffee make(CoffeeType type) throws InterruptedException {
+        Coffee coffee = new Coffee(type, recipes.get(type));
         shake();
         return coffee;
     }

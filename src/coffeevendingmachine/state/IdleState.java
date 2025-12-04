@@ -18,7 +18,7 @@ public class IdleState implements CoffeeMachineState {
 
     @Override
     public CoffeeTransactionResult dispense(CoffeeMachineStateContext context, CoffeeType type, Map<Coin, Integer> payment) throws UnsupportedCoffeeTypeException, InterruptedException, CannotMakeChangeException {
-
+        //TODO: 这个方法缺少逻辑 1. 找零校验，小于0抛出异常 2. make coffee之后扣减 inventory 3. 收的钱没有增加money
         int price = context.menu().get(type);
         int input = computeFund(payment);
         int output = input - price;
