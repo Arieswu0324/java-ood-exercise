@@ -6,16 +6,19 @@ import taskmanagementsystem.entity.User;
 import taskmanagementsystem.enums.Priority;
 import taskmanagementsystem.enums.TaskStatus;
 import taskmanagementsystem.exception.*;
+import taskmanagementsystem.specification.SearchCriteria;
 import taskmanagementsystem.strategy.DueDateSearchStrategy;
 import taskmanagementsystem.strategy.PrioritySearchStrategy;
 import taskmanagementsystem.strategy.TaskSearchStrategy;
 import taskmanagementsystem.strategy.UserSearchStrategy;
 
 import java.time.LocalDate;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.*;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.stream.Collectors;
 
 public class TaskManagementSystem {
     private static final TaskManagementSystem INSTANCE = new TaskManagementSystem();
@@ -51,15 +54,11 @@ public class TaskManagementSystem {
             throw new InsufficientTaskInfoException("creator");
         }
 
-        lock.lock();
-        try {
-            if (taskMap.containsKey(task.getTitle())) {
-                throw new DuplicateTaskNameException();
-            }
+        //去掉锁，降低颗粒度
+        Task existingTask = taskMap.putIfAbsent(task.getTitle(), task);
 
-            taskMap.put(task.getTitle(), task);
-        } finally {
-            lock.unlock();
+        if (existingTask != null) {
+            throw new DuplicateTaskNameException();
         }
     }
 
@@ -83,26 +82,21 @@ public class TaskManagementSystem {
         if (user == null) {
             throw new EmptyUserException();
         }
-        lock.lock();
-        try {
-            if (!taskMap.containsKey(name)) {
-                throw new InsufficientTaskInfoException("title");
-            }
-            Task task = taskMap.get(name);
-            task.updateTask(context, user);
-        } finally {
-            lock.unlock();
+        //这里不需要锁，因为lock保护的是taskMap，但此处并没有对map的
+        if (!taskMap.containsKey(name)) {
+            throw new InsufficientTaskInfoException("title");
         }
-
+        Task task = taskMap.get(name);
+        task.updateTask(context, user);
     }
 
-    public void startTask(Task task, User user){
+    public void startTask(Task task, User user) {
         //validations...
         task.start(user);
 
     }
 
-    public void completeTask(Task task, User user){
+    public void completeTask(Task task, User user) {
         //validations...
         task.markComplete(user);
 
@@ -141,13 +135,23 @@ public class TaskManagementSystem {
     public <K> List<Task> search(K key) {
         TaskSearchStrategy searchStrategy;
         switch (key) {
-            case Priority priority -> searchStrategy = new PrioritySearchStrategy<Priority>();
-            case LocalDate localDate -> searchStrategy = new DueDateSearchStrategy<LocalDate>();
-            case User user -> searchStrategy = new UserSearchStrategy<User>();
+            case Priority priority -> searchStrategy = new PrioritySearchStrategy();
+            case LocalDate localDate -> searchStrategy = new DueDateSearchStrategy();
+            case User user -> searchStrategy = new UserSearchStrategy();
             case null, default -> throw new UnsupportedSearchOperationException();
         }
 
-        return searchStrategy.search(taskMap, key);
+        return searchStrategy.search(Collections.unmodifiableMap(taskMap), key);
+    }
+
+    public List<Task> search(SearchCriteria criteria) {
+        if (criteria == null) {
+            throw new IllegalArgumentException("Search criteria cannot be null");
+        }
+
+        return taskMap.values().stream()
+                .filter(criteria::matches)
+                .collect(Collectors.toList());
     }
 
 

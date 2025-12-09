@@ -12,6 +12,7 @@ import java.util.concurrent.locks.ReentrantLock;
 
 import static taskmanagementsystem.enums.Priority.*;
 
+//应该使用ID作为primary key
 public class Task {
     private static final Map<Priority, Integer> DUE_MAP = Map.of(P0, 1,
             P1, 2,
@@ -27,7 +28,7 @@ public class Task {
 
     private LocalDate startDate;
     private LocalDate endDate;
-    private LocalDate createdDate;
+    private final LocalDate createdDate;
 
     private LocalDate lastUpdatedDate;
     private User modifiedBy;
@@ -47,6 +48,7 @@ public class Task {
         this.dueDate = LocalDate.now().plusDays(DUE_MAP.get(priority));
         this.taskState = new PendingState();
         this.creator = creator;
+        this.createdDate = LocalDate.now();
     }
 
     public static Builder newBuilder() {
@@ -110,9 +112,6 @@ public class Task {
         this.lastUpdatedDate = date;
     }
 
-    public void setModifiedBy(User user) {
-        this.modifiedBy = user;
-    }
 
     public void setDescription(String description) {
         this.description = description;
@@ -137,13 +136,6 @@ public class Task {
         return modifiedBy;
     }
 
-    public void setEndDate(LocalDate endDate) {
-        this.endDate = endDate;
-    }
-
-    public void setStartDate(LocalDate startDate) {
-        this.startDate = startDate;
-    }
 
     private void updateDueDate() {
         this.dueDate = this.createdDate.plusDays(DUE_MAP.get(priority));
@@ -151,6 +143,18 @@ public class Task {
 
     public LocalDate getCreatedDate() {
         return this.createdDate;
+    }
+
+    public void setModifiedBy(User user) {
+        this.modifiedBy = user;
+    }
+
+    public void setStartDate(LocalDate now) {
+        this.startDate = now;
+    }
+
+    public void setEndDate(LocalDate now) {
+        this.endDate = now;
     }
 
     public static class Builder {

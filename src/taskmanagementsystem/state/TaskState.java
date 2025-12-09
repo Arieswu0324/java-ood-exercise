@@ -3,6 +3,7 @@ package taskmanagementsystem.state;
 import taskmanagementsystem.entity.Task;
 import taskmanagementsystem.entity.TaskUpdateContext;
 import taskmanagementsystem.entity.User;
+import taskmanagementsystem.enums.Priority;
 import taskmanagementsystem.enums.TaskStatus;
 
 import java.time.LocalDate;
@@ -13,13 +14,14 @@ public interface TaskState {
 
     void markComplete(Task task, User user);
 
-    default void update(Task task, TaskUpdateContext context, User user){
-        TaskUpdateContext copy = new TaskUpdateContext(context.description(),context.priority());
+    default void update(Task task, TaskUpdateContext context, User user) {
+        String oldDescription = task.getDescription();
+        Priority oldPriority = task.getPriority();
         User oldModifier = task.getModifiedBy();
         LocalDate oldModifiedTime = task.getLastUpdatedDate();
 
         try {
-            if (context.description()!= null) {
+            if (context.description() != null) {
                 task.setDescription(context.description());
             }
 
@@ -35,14 +37,8 @@ public interface TaskState {
             }
         } catch (Exception e) {
             //回滚
-            if (copy.description() != null) {
-                task.setDescription(copy.description());
-            }
-
-            if (copy.priority() != null) {
-                task.setPriority(copy.priority());
-            }
-
+            task.setDescription(oldDescription);
+            task.setPriority(oldPriority);
             task.setModifiedBy(oldModifier);
             task.setLastUpdatedDate(oldModifiedTime);
 
@@ -57,7 +53,7 @@ public interface TaskState {
 
     }
 
-    default void assignTask(Task task, User user, User assignee){
+    default void assignTask(Task task, User user, User assignee) {
         task.setAssignee(assignee);
         task.setModifiedBy(user);
         task.setLastUpdatedDate(LocalDate.now());

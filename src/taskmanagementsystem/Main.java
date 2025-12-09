@@ -3,7 +3,11 @@ package taskmanagementsystem;
 import taskmanagementsystem.entity.Task;
 import taskmanagementsystem.entity.TaskUpdateContext;
 import taskmanagementsystem.entity.User;
+import taskmanagementsystem.enums.Priority;
 import taskmanagementsystem.service.TaskManagementSystem;
+import taskmanagementsystem.specification.AssigneeSearchCriteria;
+import taskmanagementsystem.specification.PrioritySearchCriteria;
+import taskmanagementsystem.specification.SearchCriteria;
 
 import java.util.List;
 
@@ -29,6 +33,13 @@ public class Main {
 
         List<Task> list = system.search(assignee);
         System.out.println(list.size());
+
+        // 2. 组合搜索
+        SearchCriteria highPriority =
+                new PrioritySearchCriteria(Priority.P0)
+                        .and(new AssigneeSearchCriteria(assignee));
+        List<Task> urgentTasks = system.search(highPriority);
+        System.out.println(urgentTasks.size());
 
         List<Task> history = user.getHistory();
         System.out.println(history.size());

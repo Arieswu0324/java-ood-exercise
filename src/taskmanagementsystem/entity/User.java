@@ -18,9 +18,6 @@ public class User {
     }
 
     public void addToHistory(Task task) {
-        if (!task.getAssignee().equals(this)) {
-            throw new UnsupportedUserOperationException();
-        }
         history.put(task.getTitle(), task);
     }
 
@@ -42,6 +39,11 @@ public class User {
 
     //hashcode for map...
     //equals for compare...
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(name, email);
+    }
 
     @Override
     public boolean equals(Object obj) {
