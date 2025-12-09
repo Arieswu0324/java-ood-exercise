@@ -25,7 +25,6 @@ dispense方法因为整体业务的原子性加了锁，所以strategy在被调�
    含义：在一个线程内，代码按照书写的顺序执行。前面的操作 Happens-Before 后面的操作。
 2. 管程锁定规则 (Monitor Lock Rule) —— 解释了你的“同一把锁”问题
    含义：一个 unlock 操作 Happens-Before 后续对同一个锁的 lock 操作。
-
 解释： 线程 A 解锁（Unlock）之前的所有修改，对于随后获取（Lock）这把锁的线程 B 都是可见的。
 注意：必须是同一个锁！如果是不同的锁，这条规则不生效，也就没有可见性保证。
 
@@ -34,6 +33,5 @@ dispense方法因为整体业务的原子性加了锁，所以strategy在被调�
 解释： 线程 A 写了 volatile 变量 x。 线程 B 读了 volatile 变量 x。 线程 B 一定能看到 A 写的值。
 
 4. 传递性 (Transitivity) —— 这是最“神奇”的一条
-   含义：如果 A HB B，且 B HB C，那么 A HB C。
-
+含义：如果 A HB B，且 B HB C，那么 A HB C。 
 应用（搭便车效应）：这是 volatile 和锁能保护非线程安全变量的基础。
