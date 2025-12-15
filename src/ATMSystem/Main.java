@@ -5,11 +5,10 @@ import ATMSystem.entity.CardInfo;
 import ATMSystem.service.ATMInstance;
 import ATMSystem.service.BankService;
 
-import java.util.Optional;
+import java.util.*;
 
 public class Main {
     public static void main(String[] args) {
-        //Preparation
         ATMInstance instance = getAtmInstance();
         System.out.println("card validated");
 
@@ -23,6 +22,18 @@ public class Main {
 
         System.out.println("balance: " + instance.enquireBalance());
 
+        instance.outputCard();
+
+        instance.close();
+
+        //test
+        Map<String, List<Integer>> map = new HashMap<>();
+        List<Integer> list = new ArrayList<>();
+        list.add(1);
+        map.put("a",list);
+        map.computeIfAbsent("b", k->new ArrayList<>()).add(1);
+        List<Integer> res = map.get("b");
+        System.out.println(res.stream().map(String::valueOf).toString());
 
     }
 

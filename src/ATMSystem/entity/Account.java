@@ -20,7 +20,7 @@ public class Account {
         this.accountNumber = UUID.randomUUID().toString();
         this.balance = new AtomicLong(0L);
         this.cards = new ConcurrentHashMap<>();
-        this.lock = new ReentrantLock();
+        lock = new ReentrantLock();
 
     }
 
@@ -37,17 +37,26 @@ public class Account {
         return balance.get();
     }
 
+    public ReentrantLock getLock() {
+        return this.lock;
+    }
+
+    //对于单纯的计数器，并发安全可以用CAS实现，比锁效率高
     public void updateBalance(long difference) {
-        lock.lock();
-        try {
-            if (difference < 0 && balance.addAndGet(difference) < 0) {
+        long currentBalance;
+        long newBalance;
+        do {
+            currentBalance = this.balance.get();
+            newBalance = currentBalance + difference;
+            if (newBalance < 0) {
                 throw new InsufficientFundException();
             }
-            balance.addAndGet(difference);
-        } finally {
-            lock.unlock();
-        }
+
+        } while (balance.compareAndSet(currentBalance, newBalance));
+
+
     }
+
 
     public void addCard(Card card) {
         cards.put(card.getCardId(), card);

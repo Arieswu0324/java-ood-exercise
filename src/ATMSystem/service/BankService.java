@@ -5,12 +5,15 @@ import ATMSystem.entity.Account;
 import ATMSystem.entity.AccountInfo;
 import ATMSystem.entity.Card;
 import ATMSystem.entity.CardInfo;
+import ATMSystem.exceptions.InvalidAccountException;
 import ATMSystem.exceptions.InvalidCardException;
+import ATMSystem.exceptions.InvalidPINException;
 
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.locks.ReentrantLock;
 
 public class BankService {
 
@@ -29,37 +32,52 @@ public class BankService {
 
 
     public Optional<AccountInfo> validateAccount(CardInfo cardInfo, String PIN) {
-        AtomicReference<Optional<AccountInfo>> accountInfoOptional = new AtomicReference<>(Optional.empty());
-        cardToAccountMap.compute(cardInfo.cardId(), (k, v) -> {
-            if (cardToAccountMap.containsKey(cardInfo.cardId())) {
-                String accountNo = cardToAccountMap.get(cardInfo.cardId());
-                if (accountMap.containsKey(accountNo)) {
-                    Account account = accountMap.get(accountNo);
-                    Card card = account.getCard(cardInfo.cardId());
-                    if (card != null && card.authenticate(cardInfo, PIN)) {
-                        AccountInfo accountInfo = new AccountInfo(account.getAccountNumber(), account.getUserName(), account.getBalance());
-                        accountInfoOptional.set(Optional.of(accountInfo));
-                    }
-                }
-            }
-            return k;
-        });
-        return accountInfoOptional.get();
+        String accountNo = cardToAccountMap.get(cardInfo.cardId());
+        if (accountNo == null) {
+            return Optional.empty();
+        }
 
+        Account account = accountMap.get(accountNo);
+        if (account == null) {
+            return Optional.empty();
+        }
+
+        Card card = account.getCard(cardInfo.cardId());
+        if (card == null) {
+            return Optional.empty();
+        }
+
+        if (card.authenticate(cardInfo, PIN)) {
+            AccountInfo accountInfo = new AccountInfo(
+                    account.getAccountNumber(),
+                    account.getUserName(),
+                    account.getBalance()
+            );
+            return Optional.of(accountInfo);
+        }
+
+        return Optional.empty();
     }
 
     public Optional<CardInfo> issueCard(String accountNumber) {
-        AtomicReference<Optional<CardInfo>> cardOptional = new AtomicReference<>(Optional.empty());
-        accountMap.computeIfPresent(accountNumber, (k, v) -> {
-            Account account = accountMap.get(accountNumber);
+        Account account = accountMap.get(accountNumber);
+        if (account == null) {
+            throw new InvalidAccountException();
+        }
+
+        //确保只有对同一个 Account 实例进行操作的线程才会被阻塞，不同 Account 之间的操作可以并行。
+        synchronized (account) {
             Card card = new Card(accountNumber, account.getUserName());
             account.addCard(card);
-            CardInfo cardInfo = new CardInfo(card.getCardId(), card.getCardHolderName(), card.getExpiryDate());
-            cardOptional.set(Optional.of(cardInfo));
             cardToAccountMap.put(card.getCardId(), accountNumber);
-            return account;
-        });
-        return cardOptional.get();
+
+            CardInfo cardInfo = new CardInfo(
+                    card.getCardId(),
+                    card.getCardHolderName(),
+                    card.getExpiryDate()
+            );
+            return Optional.of(cardInfo);
+        }
     }
 
     public AccountInfo openAnAccount(String accountName) {
@@ -71,34 +89,50 @@ public class BankService {
     }
 
     public AccountInfo transact(AccountInfo accountInfo, long amount, TransactionType type) {
-        AtomicReference<AccountInfo> newAccountInfo = new AtomicReference<>();
-        accountMap.computeIfPresent(accountInfo.accountNumber(), (k, v) -> {
-            Account account = accountMap.get(accountInfo.accountNumber());
+        Account account = accountMap.get(accountInfo.accountNumber());
+
+        if (account == null) {
+            return null;
+        }
+        //这里，内部updateBalance使用了CAS，这里的同步锁保证update和return的原子性
+        //即return的一定是update之后的快照，如果不加锁，那么return的是最终一致性，
+        //如果update和return之间有其他线程进行了update，则返回的是最终结果。要怎么处理取决于业务要求
+        ReentrantLock lock = account.getLock();
+        lock.lock();
+        try {
             if (TransactionType.WITHDRAWAL.equals(type)) {
                 account.updateBalance(-amount);
             } else if (TransactionType.DEPOSIT.equals(type)) {
                 account.updateBalance(amount);
             }
-            AccountInfo newInfo = new AccountInfo(accountInfo.accountNumber(), accountInfo.accountName(), account.getBalance());
-            newAccountInfo.set(newInfo);
-            return account;
-        });
 
-        return newAccountInfo.get();
+            return new AccountInfo(account.getAccountNumber(), account.getUserName(), account.getBalance());
+        } finally {
+            lock.unlock();
+        }
     }
 
     public void setPIN(CardInfo cardInfo, String oldPIN, String newPIN) {
-        cardToAccountMap.computeIfPresent(cardInfo.cardId(), (k, v) -> {
-            Account account = accountMap.get(cardToAccountMap.get(cardInfo.cardId()));
-            Card card = account.getCard(cardInfo.cardId());
-            if(card == null){
-                throw new InvalidCardException();
-            }
-            card.authenticate(cardInfo, oldPIN);
-            card.setPIN(oldPIN, newPIN);
+        String accountNo = cardToAccountMap.get(cardInfo.cardId());
+        if (accountNo == null) {
+            throw new InvalidCardException();
+        }
 
-            return v;
-        });
+        Account account = accountMap.get(accountNo);
+        if (account == null) {
+            throw new InvalidAccountException();
+        }
+
+        Card card = account.getCard(cardInfo.cardId());
+        if (card == null) {
+            throw new InvalidCardException();
+        }
+
+        if (!card.authenticate(cardInfo, oldPIN)) {
+            throw new InvalidPINException();
+        }
+
+        card.setPIN(oldPIN, newPIN);
     }
 
 }

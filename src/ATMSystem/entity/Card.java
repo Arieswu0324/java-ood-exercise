@@ -1,5 +1,8 @@
 package ATMSystem.entity;
 
+import ATMSystem.exceptions.InvalidCardException;
+import ATMSystem.exceptions.InvalidPINException;
+
 import java.time.LocalDate;
 import java.util.UUID;
 import java.util.concurrent.locks.ReentrantLock;
@@ -39,21 +42,21 @@ public class Card {
 
     public boolean authenticate(CardInfo insertedInfo, String enteredPIN) {
         if (!cardId.equals(insertedInfo.cardId())) {
-            return false;
+            throw new InvalidCardException("invalid card number");
         }
 
         if (!cardHolderName.equals(insertedInfo.cardHolderName())) {
-            return false;
+            throw new InvalidCardException("invalid card holder name");
         }
 
         if (!expiryDate.isAfter(LocalDate.now())) {
-            return false;
+            throw new InvalidCardException("Card expired");
         }
 
         lock.lock();
         try {
             if (!PIN.equals(enteredPIN)) {
-                return false;
+                throw new InvalidPINException();
             }
         } finally {
             lock.unlock();
@@ -66,7 +69,7 @@ public class Card {
         lock.lock();
         try {
             if (!oldPIN.equals(PIN)) {
-                return;
+                throw new InvalidPINException();
             }
             PIN = newPIN;
         } finally {
