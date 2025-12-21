@@ -1,10 +1,10 @@
 package tictactoegame.chain;
 
 
-public class HorizontalCheck extends WinCheckHandler {
+public class HorizontalChecker extends WinChecker {
 
     @Override
-    boolean checkMyRule(String[][] grid) {
+    protected boolean checkMyRule(String[][] grid) {
         for (int i = 0; i < 3; i++) {
             String[] row = grid[i];
             if (row[0].equals(row[1]) && row[1].equals(row[2])) {

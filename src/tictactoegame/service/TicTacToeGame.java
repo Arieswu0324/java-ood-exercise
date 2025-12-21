@@ -1,9 +1,9 @@
 package tictactoegame.service;
 
-import tictactoegame.chain.DiagonalCheck;
-import tictactoegame.chain.HorizontalCheck;
-import tictactoegame.chain.VerticalCheck;
-import tictactoegame.chain.WinCheckHandler;
+import tictactoegame.chain.DiagonalChecker;
+import tictactoegame.chain.HorizontalChecker;
+import tictactoegame.chain.VerticalChecker;
+import tictactoegame.chain.WinChecker;
 import tictactoegame.entity.GameRecord;
 import tictactoegame.entity.GameResult;
 import tictactoegame.entity.Player;
@@ -20,7 +20,7 @@ import java.util.Scanner;
 
 public class TicTacToeGame {
     private final String[][] grid;
-    private final WinCheckHandler winCheckHandler;
+    private final WinChecker winChecker;
     private final Map<String, Player> players;
     private final String xPlayer;
     private final String oPlayer;
@@ -31,10 +31,10 @@ public class TicTacToeGame {
         grid = new String[3][3];
 
 
-        WinCheckHandler verticalCheck = new VerticalCheck();
-        WinCheckHandler diagonalCheck = new DiagonalCheck();
-        winCheckHandler = new HorizontalCheck();
-        winCheckHandler.setNextCheck(verticalCheck);
+        WinChecker verticalCheck = new VerticalChecker();
+        WinChecker diagonalCheck = new DiagonalChecker();
+        winChecker = new HorizontalChecker();
+        winChecker.setNextCheck(verticalCheck);
         verticalCheck.setNextCheck(diagonalCheck);
 
 
@@ -129,7 +129,7 @@ public class TicTacToeGame {
     }
 
     private boolean checkWin() {
-        return winCheckHandler.check(grid);
+        return winChecker.check(grid);
     }
 
 
